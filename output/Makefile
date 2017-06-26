@@ -13,27 +13,32 @@ default: all
 asm_tests = \
 	test.S \
 
-extra_files = 
+extra_files =
 
 #--------------------------------------------------------------------
 # Build rules
 #--------------------------------------------------------------------
 
 RISCV_GCC = riscv64-unknown-elf-gcc
-RISCV_GCC_OPTS = -nostdlib -nostartfiles -Wa,-march=RVIMAFDXhwacha
+RISCV_GCC_OPTS = -nostdlib -nostartfiles -Wa,-march=rv64imafd
+RISCV_OBJCOPY ?= $(RISCV_PREFIX)objcopy
 RISCV_OBJDUMP = riscv64-unknown-elf-objdump --disassemble-all --section=.text --section=.data --section=.bss
 RISCV_SIM = spike --extension=hwacha
 
 #------------------------------------------------------------
 # Build assembly tests
 
-asm_tests_bin  = $(patsubst %.S, %, $(asm_tests))
-asm_tests_dump = $(addsuffix .dump, $(asm_tests_bin))
-asm_tests_sig  = $(addsuffix .sig,  $(asm_tests_bin))
-asm_tests_hex  = $(addsuffix .hex,  $(asm_tests_bin))
+asm_tests_bin     = $(patsubst %.S, %, $(asm_tests))
+asm_tests_verilog = $(addsuffix .v,    $(asm_tests_bin))
+asm_tests_dump    = $(addsuffix .dump, $(asm_tests_bin))
+asm_tests_sig     = $(addsuffix .sig,  $(asm_tests_bin))
+asm_tests_hex     = $(addsuffix .hex,  $(asm_tests_bin))
 
 $(asm_tests_dump): %.dump: %
 	$(RISCV_OBJDUMP) $< > $@
+
+$(asm_tests_verilog): %.v: %
+	$(RISCV_OBJCOPY) -O verilog $< $@
 
 $(asm_tests_bin): %: %.S $(extra_files)
 	$(RISCV_GCC) $(RISCV_GCC_OPTS) -I../env/p -T../env/p/link.ld $< -o $@
@@ -51,12 +56,12 @@ run: $(asm_tests_sig)
 	echo; perl -ne 'print "  [$$1] $$ARGV \t$$2\n" if /\*{3}(.{8})\*{3}(.*)/' \
 	       $(asm_tests_sig); echo;
 
-junk += $(asm_tests_bin) $(asm_tests_dump) $(asm_tests_sig) $(asm_tests_hex)
+junk += $(asm_tests_bin) $(asm_tests_dump) $(asm_tests_sig) $(asm_tests_verilog)
 
 #------------------------------------------------------------
 # Default
 
-all: $(asm_tests_dump) $(asm_tests_hex)
+all: $(asm_tests_dump) $(asm_tests_verilog)
 
 #------------------------------------------------------------
 # Clean up
