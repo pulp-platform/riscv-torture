@@ -20,7 +20,7 @@ extra_files =
 #--------------------------------------------------------------------
 
 RISCV_GCC = riscv64-unknown-elf-gcc
-RISCV_GCC_OPTS = -nostdlib -nostartfiles -Wa,-march=rv64imafd
+RISCV_GCC_OPTS = -nostdlib -nostartfiles -Wa,-march=rv64i
 RISCV_OBJCOPY ?= $(RISCV_PREFIX)objcopy
 RISCV_OBJDUMP = riscv64-unknown-elf-objdump --disassemble-all --section=.text --section=.data --section=.bss
 RISCV_SIM = spike --extension=hwacha
