@@ -20,6 +20,7 @@ import torture.fileop._
 
 case class Options(var timeToRun: Int = Overnight.DefTime,
   var emailAddress: String = Overnight.DefEmail,
+  var smtpServer: String = Overnight.DefSMTP,
   var errorThreshold: Int = Overnight.DefThresh,
   var cSimPath: String = Overnight.DefCSim,
   var rtlSimPath: String = Overnight.DefRtlSim,
@@ -39,6 +40,7 @@ object Overnight extends App
   def DefPermDir = "output/failedtests"
   def DefGitCommit = ""
   def DefConfig = "config/default.config"
+  def DefSMTP = "iis-mail.ee.ethz.ch"
 
   override def main(args: Array[String]) =
   {
@@ -48,6 +50,7 @@ object Overnight extends App
       opt[String]('c', "csim") valueName("<file>") text("C simulator") action {(s: String, c) => c.copy(cSimPath = s)}
       opt[String]('r', "rtlsim") valueName("<file>") text("RTL simulator") action {(s: String, c) => c.copy(rtlSimPath = s)}
       opt[String]('e', "email") valueName("<address>") text("email to report to") action {(s: String, c) => c.copy(emailAddress = s)}
+      opt[String]('s', "smtp") valueName("<hostname>") text("hostname to use for sending the report") action {(s: String, c) => c.copy(smtpServer = s)}
       opt[String]('g', "gitcommit") valueName("<git commit>") text("Git commit to check out") action {(s: String, c) => c.copy(gitCommit = s)}
       opt[Int]('t', "threshold") valueName("<count>") text("number of failures to trigger email") action {(i: Int, c) => c.copy(errorThreshold = i)}
       opt[Int]('m', "minutes") valueName("<minutes>") text("number of minutes to run tests") action {(i: Int, c) => c.copy(timeToRun = i)}
@@ -57,7 +60,7 @@ object Overnight extends App
     parser.parse(args, Options()) match {
       case Some(opts) =>
         overnight(opts.confFileName, opts.permDir, opts.cSimPath, opts.rtlSimPath,
-          opts.emailAddress, opts.gitCommit, opts.errorThreshold, opts.timeToRun, opts.output, opts.dumpWaveform)
+          opts.emailAddress, opts.smtpServer, opts.gitCommit, opts.errorThreshold, opts.timeToRun, opts.output, opts.dumpWaveform)
       case None =>
         System.exit(1) // error message printed by parser
     }
@@ -67,6 +70,7 @@ object Overnight extends App
                   cSimPath: String,
                   rtlSimPath: String,
                   emailAddress: String,
+                  smtpServer: String,
                   gitCommit: String,
                   errorThreshold: Int,
                   timeToRun: Int,
@@ -78,14 +82,16 @@ object Overnight extends App
       config.load(configin)
       configin.close()
 
-      val errors  = Option(config.getProperty("torture.overnight.errors")) map ( _.toInt )
-      val thresh  = if(errorThreshold == DefThresh) errors.getOrElse(DefThresh) else errorThreshold
-      val runtime = Option(config.getProperty("torture.overnight.minutes")) map ( _.toInt )
-      val minutes = if(timeToRun == DefTime) runtime.getOrElse(DefTime) else timeToRun
-      val outdir  = Option(config.getProperty("torture.overnight.outdir"))
-      val permDir = if(outputDir == DefPermDir) outdir.getOrElse(DefPermDir) else outputDir
-      val email   = Option(config.getProperty("torture.overnight.email"))
-      val address = if(emailAddress == DefEmail) email.getOrElse(DefEmail) else emailAddress
+      val errors   = Option(config.getProperty("torture.overnight.errors")) map ( _.toInt )
+      val thresh   = if(errorThreshold == DefThresh) errors.getOrElse(DefThresh) else errorThreshold
+      val runtime  = Option(config.getProperty("torture.overnight.minutes")) map ( _.toInt )
+      val minutes  = if(timeToRun == DefTime) runtime.getOrElse(DefTime) else timeToRun
+      val outdir   = Option(config.getProperty("torture.overnight.outdir"))
+      val permDir  = if(outputDir == DefPermDir) outdir.getOrElse(DefPermDir) else outputDir
+      val email    = Option(config.getProperty("torture.overnight.email"))
+      val address  = if(emailAddress == DefEmail) email.getOrElse(DefEmail) else emailAddress
+      val smtp     = Option(config.getProperty("torture.overnight.smtp"))
+      val smtpHost = if(smtp == DefSMTP) smtp.getOrElse(DefSMTP) else smtpServer
 
       val startTime = System.currentTimeMillis
       var endTime = startTime + minutes*60*1000
@@ -108,7 +114,7 @@ object Overnight extends App
             permFiles.foreach( f => f.copyTo( Path.fromString(permDir) / f.name, copyAttributes=false))
             statFile.copyTo(Path.fromString(permDir) / statFile.name, replaceExisting=true, copyAttributes=false)
           }
-        } 
+        }
         test foreach { t =>
           val targetFiles:PathSet[Path] = Path(t.init:_*) * (baseName+"*")
           targetFiles.foreach(_.delete())
@@ -125,11 +131,11 @@ object Overnight extends App
       {
         Some(address) foreach { addr =>
           val properties = System.getProperties
-          properties.put("mail.smtp.host", "localhost")
+          properties.put("mail.smtp.host", smtpHost)
           val hostname = InetAddress.getLocalHost().getHostName()
           val session = Session.getDefaultInstance(properties)
           val message = new MimeMessage(session)
-          message.setFrom(new InternetAddress("torture@"+hostname+".millennium.berkeley.edu"))
+          message.setFrom(new InternetAddress("torture@iis.ee.ethz.ch"))
           message.setRecipients(Message.RecipientType.TO, addr)
           message.setText( "Run complete with " + errCount + " errors. Failing tests put in " +  permPath.toAbsolute.path )
           message.setSubject("Run complete on " + hostname)
@@ -163,7 +169,7 @@ object Overnight extends App
     val emPath: Path = destPath / Path("emulator")
     val vcsrelPath: Path = Path.fromString("vlsi-generic/build/vcs-sim-rtl")
     val vcsPath: Path = destPath / vcsrelPath
-    
+
     if (!destPath.exists)
     {
       FileOperations.gitcheckout(rocketPath, destPath, cmmt)
