@@ -1,3 +1,3 @@
 [submodule "env"]
 	path = env
-	url = git@iis-git.ee.ethz.ch:floce/riscv-torture.git
+	url = git@iis-git.ee.ethz.ch:floce/riscv-test-env.git
