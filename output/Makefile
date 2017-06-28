@@ -43,7 +43,7 @@ $(asm_tests_bin): %: %.S $(extra_files)
 	$(RISCV_GCC) $(RISCV_GCC_OPTS) -I../env/p -T../env/p/link.ld $< -o $@
 
 $(asm_tests_hex): %.hex: % $(extra_files)
-	elf2hex 16 16384 $< > $@
+	elf2hex 8 16384 $< 2147483648 > $@
 
 $(asm_tests_sig): %.sig: %
 	$(RISCV_SIM) +signature=$@ $<
@@ -55,12 +55,12 @@ run: $(asm_tests_sig)
 	echo; perl -ne 'print "  [$$1] $$ARGV \t$$2\n" if /\*{3}(.{8})\*{3}(.*)/' \
 	       $(asm_tests_sig); echo;
 
-junk += $(asm_tests_bin) $(asm_tests_dump) $(asm_tests_sig) $(asm_tests_verilog)
+junk += $(asm_tests_bin) $(asm_tests_dump) $(asm_tests_sig) $(asm_tests_hex)
 
 #------------------------------------------------------------
 # Default
 
-all: $(asm_tests_dump) $(asm_tests_verilog)
+all: $(asm_tests_dump) $(asm_tests_hex)
 
 #------------------------------------------------------------
 # Clean up
