@@ -3,7 +3,7 @@
 SBT ?= java -Xmx4G -Xss32M -XX:MaxPermSize=256M -jar sbt-launch.jar
 RTL_CONFIG := DefaultConfig
 C_SIM := ../emulator/emulator-rocketchip-$(RTL_CONFIG)
-R_SIM := ../ariane-run-torture
+R_SIM := ../../kerbin-run-torture
 TEST := output/test.S
 OPTIONS := $(empty)
 SUITE := output
